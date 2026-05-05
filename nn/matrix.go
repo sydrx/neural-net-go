@@ -93,6 +93,13 @@ func HadamardMul(a, b *Matrix) {
 	}
 }
 
+// SliceRow extracts a single row as a new 1×cols matrix.
+func SliceRow(m *Matrix, row int) *Matrix {
+	out := NewMatrix(1, m.Cols)
+	copy(out.Data, m.Data[row*m.Cols:(row+1)*m.Cols])
+	return out
+}
+
 func (m *Matrix) String() string {
 	var sb strings.Builder
 	for i := 0; i < m.Rows; i++ {

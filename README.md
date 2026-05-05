@@ -1,105 +1,81 @@
 # 🧠 neural-net-go
 
-A neural network built **from scratch** in pure Go — no ML libraries, no external dependencies.
+Neural network built **from scratch** in pure Go — no ML libraries, no external dependencies.
 
-Implements a fully-connected feedforward network with backpropagation trained via stochastic gradient descent.
-
-## Features
-
-- ✅ Matrix operations (dot product, transpose, Hadamard, …)
-- ✅ Dense (fully-connected) layers
-- ✅ Activations: **Sigmoid**, **ReLU**, **Tanh**, **Linear**
-- ✅ Losses: **MSE**, **Binary Cross-Entropy**
-- ✅ Backpropagation with SGD
-- ✅ Xavier weight initialisation
-- ✅ Zero dependencies — only the Go standard library
+Feedforward network with backpropagation and mini-batch SGD. Works on XOR and MNIST (~97-98% accuracy).
 
 ## Quick start
 
 ```bash
-git clone https://github.com/sydrx/neural-net-go
+git clone https://github.com/yourname/neural-net-go
 cd neural-net-go
 
-# Run the XOR demo
+# XOR demo (instant)
 go run ./examples/xor
+
+# MNIST digit recognizer (~97% accuracy, ~2 min on CPU)
+go run ./examples/mnist
 ```
 
-Expected output:
-
-```
-Training (10 000 epochs)...
-
-epoch  1000 | loss: 0.249821 [████░░░░░░░░░░░░░░░░]
-epoch  2000 | loss: 0.164432 [██████░░░░░░░░░░░░░░]
-...
-epoch 10000 | loss: 0.001243 [████████████████████]
-
-Results:
-┌──────────┬──────────┬──────────┬──────────┐
-│  Input   │ Expected │   Got    │  Status  │
-├──────────┼──────────┼──────────┼──────────┤
-│ [0, 0]   │    0     │  0.0231  │    ✓     │
-│ [0, 1]   │    1     │  0.9812  │    ✓     │
-│ [1, 0]   │    1     │  0.9798  │    ✓     │
-│ [1, 1]   │    0     │  0.0187  │    ✓     │
-└──────────┴──────────┴──────────┴──────────┘
-
-Accuracy: 4/4 (100%)
-```
-
-## Architecture
+## What's inside
 
 ```
 nn/
-├── matrix.go      # Matrix type: Dot, Transpose, Apply, …
+├── matrix.go      # Matrix ops: Dot, Transpose, Apply, Hadamard…
 ├── activation.go  # Sigmoid, ReLU, Tanh, Linear
-├── layer.go       # Dense layer (forward + backward)
-├── loss.go        # MSE, BinaryCrossEntropy
-└── network.go     # Sequential network, Train, Predict
+├── layer.go       # Dense layer — forward + backprop
+├── loss.go        # MSE, BinaryCrossEntropy, SoftmaxCE
+├── network.go     # Sequential net, Train, TrainMiniBatch, Accuracy
+└── mnist.go       # MNIST downloader + parser
 
 examples/
-└── xor/
-    └── main.go    # XOR demo
+├── xor/main.go    # Classic XOR problem  → 100% accuracy
+└── mnist/main.go  # Handwritten digits   → ~97-98% accuracy
 ```
 
-## Usage
+## MNIST results
 
-```go
-rng := nn.RNG(42)
+```
+Training: 20 epochs, batch 64, lr 0.01
 
-net := nn.NewNetwork(0.1, nn.MSE).
-    Add(nn.NewDense(2, 16, nn.ReLU, rng)).
-    Add(nn.NewDense(16, 8, nn.ReLU, rng)).
-    Add(nn.NewDense(8, 1, nn.Sigmoid, rng))
+epoch  1 | loss: 0.4821 [████░░░░░░░░░░░░░░░░]
+epoch  5 | loss: 0.2103 [█████████░░░░░░░░░░░]
+epoch 10 | loss: 0.1247 [█████████████░░░░░░░]
+epoch 20 | loss: 0.0731 [████████████████████]
 
-net.Train(X, Y, epochs, printEvery)
-pred := net.Predict(X)
+Train accuracy: 98.31%
+Test  accuracy: 97.42%
 ```
 
-## Math
+## How it works
 
-Forward pass for each layer:
-
+**Forward pass** for each Dense layer:
 ```
 z = X · W + b
 a = activation(z)
 ```
 
-Backward pass (backpropagation):
-
+**Backward pass** (backpropagation):
 ```
 δ = dLoss/dOut ⊙ activation'(z)
 dW = Xᵀ · δ
-db = Σ δ  (sum over batch)
+db = Σ δ
 dX = δ · Wᵀ
 ```
 
-Weight update (SGD):
+**SoftmaxCrossEntropy** gradient shortcut (avoids Jacobian):
+```
+dLoss/dz = softmax(z) - y_one_hot   (per sample, / batch_size)
+```
 
-```
-W -= lr · dW
-b -= lr · db
-```
+**Mini-batch SGD**: data is shuffled each epoch, split into batches of 64.
+
+## Architecture
+
+| Example | Layers           | Activation | Loss        | Accuracy |
+|---------|------------------|------------|-------------|----------|
+| XOR     | 2→8→4→1          | Tanh/Sigmoid | MSE       | 100%     |
+| MNIST   | 784→256→128→10   | ReLU/Linear  | SoftmaxCE | ~97-98%  |
 
 ## License
 
