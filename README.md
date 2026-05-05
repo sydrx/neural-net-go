@@ -7,7 +7,7 @@ Feedforward network with backpropagation and mini-batch SGD. Works on XOR and MN
 ## Quick start
 
 ```bash
-git clone https://github.com/yourname/neural-net-go
+git clone https://github.com/sydrx/neural-net-go
 cd neural-net-go
 
 # XOR demo (instant)
