@@ -1,3 +1,3 @@
-module neural-net-go
+module github.com/sydrx/neural-net-go
 
-go 1.21
+go 1.22

@@ -7,7 +7,7 @@ Feedforward network with backpropagation and mini-batch SGD. Works on XOR and MN
 ## Quick start
 
 ```bash
-git clone https://github.com/sydrx/neural-net-go
+git clone https://github.com/sydrx/neural-net-go.git
 cd neural-net-go
 
 # XOR demo (instant)
@@ -25,10 +25,12 @@ nn/
 ├── activation.go  # Sigmoid, ReLU, Tanh, Linear
 ├── layer.go       # Dense layer — forward + backprop
 ├── loss.go        # MSE, BinaryCrossEntropy, SoftmaxCE
-├── network.go     # Sequential net, Train, TrainMiniBatch, Accuracy
+├── network.go     # Sequential net, TrainStep, Accuracy
+├── trainer.go     # Mini-batch SGD trainer with augmentation
+├── augment.go     # Image augmentation (rotation, scale, noise)
 ├── mnist.go       # MNIST downloader + parser
 ├── save.go        # Save/load trained model weights
-└── preprocess.go  # ImageToMNIST: convert photos to 28×28 input
+└── preprocess.go  # ImageToMNIST, SegmentDigits, auto-thinning
 
 examples/
 ├── xor/main.go       # Classic XOR problem  → 100% accuracy
@@ -39,15 +41,16 @@ examples/
 ## MNIST results
 
 ```
-Training: 20 epochs, batch 64, lr 0.01
+Training: 25 epochs, batch 64, lr 0.01, augmentation ON
 
 epoch  1 | loss: 0.4821 [████░░░░░░░░░░░░░░░░]
 epoch  5 | loss: 0.2103 [█████████░░░░░░░░░░░]
 epoch 10 | loss: 0.1247 [█████████████░░░░░░░]
 epoch 20 | loss: 0.0731 [████████████████████]
+epoch 25 | loss: 0.0582 [████████████████████]
 
-Train accuracy: 98.31%
-Test  accuracy: 97.42%
+Train accuracy: 98.85%
+Test  accuracy: 97.92%
 ```
 
 ## Recognize your own digits
@@ -64,7 +67,9 @@ go run ./examples/predict photo_of_digit.jpg
 
 The preprocessing pipeline automatically:
 - Converts to grayscale
-- Crops to the digit with padding
+- Detects and thins thick marker strokes (morphological erosion)
+- Segments multiple digits from a single image
+- Crops each digit with padding and makes square
 - Resizes to 28×28 using bilinear interpolation
 - Inverts colors (white digit on black background like MNIST)
 

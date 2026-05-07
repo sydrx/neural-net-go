@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 
-	nn "neural-net-go/nn"
+	nn "github.com/sydrx/neural-net-go/nn"
 )
 
 func main() {
@@ -33,7 +33,8 @@ func main() {
 	fmt.Println("Training (10 000 epochs)...")
 	fmt.Println()
 
-	net.Train(X, Y, 10_000, 1_000)
+	trainer := nn.NewTrainer(net, false)
+	trainer.Run(X, Y, 10_000, 4, nn.RNG(1), 1_000)
 
 	fmt.Println()
 	fmt.Println("Results:")

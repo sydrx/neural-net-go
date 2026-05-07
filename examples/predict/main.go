@@ -5,20 +5,24 @@ import (
 	"math"
 	"os"
 	"sort"
+	"strings"
 
-	nn "neural-net-go/nn"
+	nn "github.com/sydrx/neural-net-go/nn"
 )
 
 const modelPath = "model.bin"
 
 func main() {
 	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run ./examples/predict <image.jpg|image.png>")
+		fmt.Println("Usage:")
+		fmt.Println("  go run ./examples/predict photo.jpg")
 		fmt.Println()
 		fmt.Println("Train the model first:")
 		fmt.Println("  go run ./examples/mnist")
 		os.Exit(1)
 	}
+
+	imagePath := os.Args[1]
 
 	// ── Load model ────────────────────────────────────────────
 	fmt.Printf("Loading model from %s...\n", modelPath)
@@ -33,50 +37,70 @@ func main() {
 		fmt.Println("Train first: go run ./examples/mnist")
 		os.Exit(1)
 	}
-	fmt.Println("Model loaded ✓\n")
+	fmt.Println("Model loaded ✓")
+	fmt.Println()
 
-	// ── Preprocess image ──────────────────────────────────────
-	imagePath := os.Args[1]
-	fmt.Printf("Processing: %s\n", imagePath)
-	input, err := nn.ImageToMNIST(imagePath)
+	// ── Segment digits ────────────────────────────────────────
+	fmt.Printf("Segmenting digits in: %s\n", imagePath)
+	digits, rects, err := nn.SegmentDigits(imagePath)
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		os.Exit(1)
 	}
+	fmt.Printf("Found %d digit(s)\n\n", len(digits))
 
-	fmt.Println("\nWhat the network sees (28×28):")
-	fmt.Println("┌" + rep("─", 56) + "┐")
-	nn.PrintASCII(input)
-	fmt.Println("└" + rep("─", 56) + "┘")
+	// ── Predict each digit ────────────────────────────────────
+	results := make([]int, len(digits))
+	confidences := make([]float64, len(digits))
 
-	// ── Predict ───────────────────────────────────────────────
-	output := net.Predict(input)
-	probs := softmax(output.Data)
-	best := argmax(probs)
+	for i, input := range digits {
+		_ = rects[i] // bounding box (available if you want to draw it)
 
-	fmt.Printf("\n┌─────────────────────────────┐\n")
-	fmt.Printf("│  Predicted digit:   %d       │\n", best)
-	fmt.Printf("│  Confidence:    %5.1f%%      │\n", probs[best]*100)
-	fmt.Printf("└─────────────────────────────┘\n")
+		output := net.Predict(input)
+		probs := softmax(output.Data)
+		best := argmax(probs)
+		results[i] = best
+		confidences[i] = probs[best]
 
-	fmt.Println("\nAll probabilities:")
-	type dp struct {
-		d int
-		p float64
-	}
-	ranked := make([]dp, 10)
-	for i, p := range probs {
-		ranked[i] = dp{i, p}
-	}
-	sort.Slice(ranked, func(i, j int) bool { return ranked[i].p > ranked[j].p })
-	for _, x := range ranked {
-		bar := int(x.p * 30)
-		marker := " "
-		if x.d == best {
-			marker = "►"
+		// Show ASCII preview of each digit
+		fmt.Printf("── Digit %d ──────────────────────────────────────────────\n", i+1)
+		fmt.Println("┌" + rep("─", 56) + "┐")
+		nn.PrintASCII(input)
+		fmt.Println("└" + rep("─", 56) + "┘")
+
+		// Top-3 predictions
+		type dp struct {
+			d int
+			p float64
 		}
-		fmt.Printf("  %s %d │%-30s│ %5.1f%%\n", marker, x.d, rep("█", bar), x.p*100)
+		ranked := make([]dp, 10)
+		for j, p := range probs {
+			ranked[j] = dp{j, p}
+		}
+		sort.Slice(ranked, func(a, b int) bool { return ranked[a].p > ranked[b].p })
+		fmt.Printf("  Prediction: %d  (%.1f%%)\n", best, probs[best]*100)
+		fmt.Printf("  Runners-up: %d (%.1f%%)   %d (%.1f%%)\n\n",
+			ranked[1].d, ranked[1].p*100,
+			ranked[2].d, ranked[2].p*100)
 	}
+
+	// ── Final answer ──────────────────────────────────────────
+	number := ""
+	for _, d := range results {
+		number += fmt.Sprintf("%d", d)
+	}
+
+	fmt.Println(strings.Repeat("═", 44))
+	fmt.Printf("  Recognized number: %s\n", number)
+
+	// confidence bar per digit
+	fmt.Println()
+	for i, d := range results {
+		bar := int(confidences[i] * 20)
+		fmt.Printf("  digit %d: %d  %s  %.1f%%\n",
+			i+1, d, "["+rep("█", bar)+rep("░", 20-bar)+"]", confidences[i]*100)
+	}
+	fmt.Println(strings.Repeat("═", 44))
 }
 
 func softmax(logits []float64) []float64 {

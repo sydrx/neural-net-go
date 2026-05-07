@@ -1,7 +1,6 @@
 package nn
 
 import (
-	"fmt"
 	"math/rand"
 )
 
@@ -49,54 +48,6 @@ func (n *Network) TrainStep(x, y *Matrix) float64 {
 	return loss
 }
 
-// Train runs full-batch gradient descent.
-func (n *Network) Train(x, y *Matrix, epochs, printEvery int) {
-	for epoch := 1; epoch <= epochs; epoch++ {
-		loss := n.TrainStep(x, y)
-		if printEvery > 0 && epoch%printEvery == 0 {
-			fmt.Printf("epoch %5d | loss: %.6f %s\n", epoch, loss, lossBar(loss, 0.5, 20))
-		}
-	}
-}
-
-// TrainMiniBatch runs mini-batch SGD — essential for large datasets like MNIST.
-//   x, y      – full dataset matrices  [N × features]
-//   epochs    – number of full passes over the data
-//   batchSize – samples per gradient update
-//   rng       – random source for shuffling
-func (n *Network) TrainMiniBatch(x, y *Matrix, epochs, batchSize int, rng *rand.Rand, printEvery int) {
-	N := x.Rows
-	indices := make([]int, N)
-	for i := range indices {
-		indices[i] = i
-	}
-
-	for epoch := 1; epoch <= epochs; epoch++ {
-		// Shuffle row indices each epoch
-		rng.Shuffle(N, func(i, j int) { indices[i], indices[j] = indices[j], indices[i] })
-
-		totalLoss := 0.0
-		batches := 0
-
-		for start := 0; start < N; start += batchSize {
-			end := start + batchSize
-			if end > N {
-				end = N
-			}
-			bx := sliceRows(x, indices[start:end])
-			by := sliceRows(y, indices[start:end])
-
-			totalLoss += n.TrainStep(bx, by)
-			batches++
-		}
-
-		if printEvery > 0 && epoch%printEvery == 0 {
-			avgLoss := totalLoss / float64(batches)
-			fmt.Printf("epoch %3d | loss: %.4f %s\n", epoch, avgLoss, lossBar(avgLoss, 2.5, 20))
-		}
-	}
-}
-
 // Predict returns the network output for input x.
 func (n *Network) Predict(x *Matrix) *Matrix { return n.Forward(x) }
 
@@ -122,30 +73,11 @@ func argmax(m *Matrix, row int) int {
 	return best
 }
 
-// sliceRows extracts rows at given indices into a new Matrix.
-func sliceRows(m *Matrix, indices []int) *Matrix {
+// SliceRows extracts rows at given indices into a new Matrix.
+func SliceRows(m *Matrix, indices []int) *Matrix {
 	out := NewMatrix(len(indices), m.Cols)
 	for i, idx := range indices {
 		copy(out.Data[i*m.Cols:], m.Data[idx*m.Cols:(idx+1)*m.Cols])
 	}
 	return out
-}
-
-func lossBar(loss, maxLoss float64, width int) string {
-	fill := int(float64(width) * (1 - loss/maxLoss))
-	if fill < 0 {
-		fill = 0
-	}
-	if fill > width {
-		fill = width
-	}
-	bar := "["
-	for i := 0; i < width; i++ {
-		if i < fill {
-			bar += "█"
-		} else {
-			bar += "░"
-		}
-	}
-	return bar + "]"
 }
